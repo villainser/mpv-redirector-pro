@@ -492,6 +492,10 @@ function createPopupDomHarness(initialState, options = {}) {
                         enabledSiteCount: 0
                     }
                 };
+                if (message.type === 'SET_CANDIDATE_PRIORITY' && typeof options.candidatePriorityState === 'function') {
+                    callback({ ok: true, state: clone(options.candidatePriorityState(clone(message))) });
+                    return;
+                }
                 if (message.type === 'SET_QUALITY_ORDER') {
                     const state = clone(initialState);
                     state.sourcePreferences = {
@@ -1467,6 +1471,56 @@ for (const change of ['moved earlier in the ranking', 'promoted to recommended']
         assert.equal(document.querySelector('.other-candidates').open, true);
     });
 }
+
+test('preferring a source that the worker re-ranks to the top does not scroll the popup after it', async () => {
+    const sourceA = popupCandidate('source-a', 'https://cdn.video.example/master-a.m3u8', 90, true);
+    const sourceB = popupCandidate('source-b', 'https://cdn.video.example/master-b.m3u8', 70);
+    const sourceC = popupCandidate('source-c', 'https://cdn.video.example/master-c.m3u8', 50);
+    let automaticScrolls = 0;
+    const harness = createPopupDomHarness(popupState([sourceA, sourceB, sourceC]), {
+        // The real worker sorts by user priority, so the chosen card becomes the recommended one.
+        candidatePriorityState(message) {
+            const chosen = { ...(message.candidateId === 'source-c' ? sourceC : sourceB), userPriority: 1, recommended: true };
+            const rest = [sourceA, sourceB, sourceC]
+                .filter((candidate) => candidate.id !== chosen.id)
+                .map((candidate) => ({ ...candidate, recommended: false }));
+            const state = popupState([chosen, ...rest]);
+            state.status.recommendedCandidateId = chosen.id;
+            return state;
+        },
+        onFocus(node, options) {
+            if (node.classList.contains('candidate-priority-button') && options?.preventScroll !== true) {
+                node.ownerDocument.appShell.scrollTop = 0;
+                automaticScrolls += 1;
+            }
+        }
+    });
+    await settlePopup();
+
+    const { document } = harness;
+    document.querySelector('.other-candidates').open = true;
+    const preferButton = document.querySelectorAll('.candidate-priority-button').find((button) =>
+        button.dataset.candidateId === 'source-c' && button.dataset.viewAction === 'priority-preferred'
+    );
+    assert.ok(preferButton && preferButton.disabled === false);
+    document.appShell.scrollTop = 450;
+    preferButton.click();
+    await settlePopup();
+
+    assert.ok(
+        harness.runtimeMessages.some((message) => message.type === 'SET_CANDIDATE_PRIORITY' && message.candidateId === 'source-c'),
+        'the priority change should reach the worker'
+    );
+    assert.equal(
+        document.querySelector('.candidate-card').querySelector('.candidate-priority-button').dataset.candidateId,
+        'source-c',
+        'the preferred source should now lead the list'
+    );
+    assert.equal(automaticScrolls, 0, 'restoring focus after the re-rank must suppress the browser default scroll');
+    assert.equal(document.appShell.scrollTop, 450);
+    assert.equal(document.activeElement.dataset.candidateId, 'source-c');
+    assert.equal(document.activeElement.dataset.viewAction, 'priority-preferred');
+});
 
 test('quality-order controls send the exact domain-scoped order and render the saved ranking', async () => {
     const sourceA = popupCandidate('source-a', 'https://cdn.video.example/master-a.m3u8', 90, true);

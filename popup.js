@@ -2390,7 +2390,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 .find((button) => button.dataset.candidateId === candidate.id && button.dataset.priority === appliedMode);
             const containingDetails = focusTarget?.closest('details');
             if (containingDetails) containingDetails.open = true;
-            focusTarget?.focus();
+            // The worker re-ranks on priority changes, so a preferred card can jump to
+            // the top of the list. Restoring focus must not drag the viewport after it.
+            focusTarget?.focus({ preventScroll: true });
         }
     }
 
