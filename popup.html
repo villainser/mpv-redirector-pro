@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pl">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MPV Redirector Pro</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="app-shell">
+        <header class="app-header">
+            <div class="brand-row">
+                <div class="brand-lockup">
+                    <span class="brand-mark" aria-hidden="true">MPV</span>
+                    <div>
+                        <p class="eyebrow">Redirector Pro</p>
+                        <h1>Przekaż odtwarzanie</h1>
+                    </div>
+                </div>
+                <span id="app-version" class="version" aria-label="Wersja rozszerzenia">v—</span>
+            </div>
+
+            <div class="health-strip" aria-label="Stan połączenia z odtwarzaczem">
+                <div id="host-health" class="health-item" data-state="checking">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span>
+                        <span class="health-label">Host lokalny</span>
+                        <strong id="host-health-text">Sprawdzam…</strong>
+                    </span>
+                </div>
+                <div id="mpv-health" class="health-item" data-state="checking">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span>
+                        <span class="health-label">MPV</span>
+                        <strong id="mpv-health-text">Sprawdzam…</strong>
+                    </span>
+                </div>
+                <button id="refresh-button" class="icon-button" type="button"
+                    aria-label="Odśwież stan rozszerzenia" title="Odśwież stan">↻</button>
+            </div>
+        </header>
+
+        <main>
+            <section class="site-control" aria-labelledby="site-auto-heading">
+                <div class="site-control-copy">
+                    <h2 id="site-auto-heading">Auto-otwieranie na tej stronie</h2>
+                    <p id="site-hostname">Ustalam domenę…</p>
+                </div>
+                <label class="switch-control">
+                    <input id="site-auto-toggle" type="checkbox" role="switch"
+                        aria-describedby="site-auto-note" disabled>
+                    <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                    <span class="sr-only">Włącz auto-otwieranie MPV dla bieżącej domeny</span>
+                </label>
+                <p id="site-auto-note" class="site-auto-note">Sprawdzam ustawienie domeny.</p>
+            </section>
+
+            <section class="resolver-control" aria-labelledby="resolver-heading">
+                <div class="resolver-heading-row">
+                    <div>
+                        <p class="section-kicker">Dodatkowe wykrywanie</p>
+                        <h2 id="resolver-heading">Dokładne rozpoznawanie strony</h2>
+                    </div>
+                    <span id="resolver-health" class="resolver-health" data-state="checking" aria-live="polite">Sprawdzam…</span>
+                </div>
+                <p id="resolver-note" class="resolver-note">Najpierw Streamlink, potem yt-dlp. Znalezione adresy dołączą do playlisty.</p>
+                <button id="resolve-page-button" class="resolve-page-button" type="button">Rozpoznaj stronę</button>
+
+                <details class="resolver-session">
+                    <summary>Sesja strony (opcjonalnie)</summary>
+                    <div class="resolver-session-body">
+                        <div class="resolver-cookie-row">
+                            <div>
+                                <strong id="resolver-cookie-label">Użyj cookies tylko dla tej domeny</strong>
+                                <span id="resolver-cookie-host">Ustalam domenę…</span>
+                            </div>
+                            <label class="switch-control">
+                                <input id="resolver-cookie-toggle" type="checkbox" role="switch"
+                                    aria-describedby="resolver-cookie-note" disabled>
+                                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                                <span class="sr-only">Pozwól resolverowi użyć cookies pasujących do bieżącej domeny</span>
+                            </label>
+                        </div>
+                        <p id="resolver-cookie-note" class="resolver-cookie-note">Domyślnie resolver nie odczytuje danych logowania.</p>
+                    </div>
+                </details>
+            </section>
+
+            <section id="permission-notice" class="notice" data-tone="permission" role="status" hidden>
+                <span class="notice-icon" aria-hidden="true">!</span>
+                <div>
+                    <strong>Ta strona jest chroniona przez Chrome</strong>
+                    <p id="permission-message">Otwórz zwykłą stronę internetową, aby wykrywać strumienie.</p>
+                </div>
+            </section>
+
+            <section id="host-notice" class="notice" data-tone="error" role="alert" hidden>
+                <span class="notice-icon" aria-hidden="true">!</span>
+                <div>
+                    <strong id="host-notice-title">Host lokalny nie odpowiada</strong>
+                    <p id="host-notice-message">MPV nie może zostać uruchomiony. Odśwież stan, aby spróbować ponownie.</p>
+                </div>
+            </section>
+
+            <section class="candidates-section" aria-labelledby="candidates-heading">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">Źródła z załadowanej strony</p>
+                        <h2 id="candidates-heading">Gotowa playlista</h2>
+                    </div>
+                    <span id="candidate-count" class="count-badge" aria-label="Liczba kandydatów">0</span>
+                </div>
+                <p id="diagnostic-source-note" class="diagnostic-source-note" role="status" aria-live="polite" hidden></p>
+                <div id="playlist-tools" class="playlist-tools" hidden>
+                    <p id="playlist-summary">Lista zawiera tylko źródła gotowe do odtworzenia.</p>
+                    <div class="playlist-actions">
+                        <button id="quick-play-button" class="quick-play-button" type="button">Otwórz polecany w MPV</button>
+                        <button id="export-m3u-button" class="export-m3u-button" type="button">Pobierz adresy M3U</button>
+                    </div>
+                    <div id="source-preferences" class="source-preferences">
+                        <div class="source-preferences-row">
+                            <div class="source-preferences-copy">
+                                <h3 id="source-preferences-heading">Priorytety i adresy</h3>
+                                <span>Pełne URL dla tej witryny</span>
+                            </div>
+                            <label class="switch-control">
+                                <input id="show-full-urls-toggle" type="checkbox" role="switch"
+                                    aria-labelledby="source-preferences-heading show-full-urls-label"
+                                    aria-describedby="source-url-warning" disabled>
+                                <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                                <span id="show-full-urls-label" class="sr-only">Pokazuj pełne URL wszystkich źródeł</span>
+                            </label>
+                        </div>
+                        <p id="source-url-warning" class="source-url-warning"><strong>Pełne URL domyślnie ukryte.</strong> Mogą zawierać krótkotrwałe tokeny dostępu — nie udostępniaj ich.</p>
+                    </div>
+                </div>
+                <details id="quality-order-panel" class="quality-order-panel">
+                    <summary>
+                        <span>
+                            <strong>Kolejność jakości dla domeny</strong>
+                            <small id="quality-order-summary">Najpierw 4K / 2160p</small>
+                        </span>
+                    </summary>
+                    <div class="quality-order-body">
+                        <p id="quality-order-help" class="quality-order-help">Źródła wyżej na liście mają pierwszeństwo. Ustawienie jest zapisywane tylko dla tej domeny.</p>
+                        <ol id="quality-order-list" class="quality-order-list" aria-describedby="quality-order-help"></ol>
+                        <p id="quality-order-feedback" class="quality-order-feedback" role="status" aria-live="polite"></p>
+                    </div>
+                </details>
+                <div id="candidate-content" class="candidate-content" aria-live="polite" aria-busy="true">
+                    <div class="empty-state" data-state="loading">
+                        <span class="empty-orbit" aria-hidden="true"></span>
+                        <h3>Nasłuchuję ruchu wideo</h3>
+                        <p>Za chwilę pokażę najlepszy bezpieczny kandydat.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="play-options" class="play-options" aria-labelledby="mode-legend" hidden>
+                <fieldset>
+                    <legend id="mode-legend">Tryb otwarcia</legend>
+                    <div class="mode-selector">
+                        <label class="mode-option">
+                            <input type="radio" name="play-mode" value="new" checked>
+                            <span>Nowe</span>
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="play-mode" value="append">
+                            <span>Dodaj</span>
+                        </label>
+                        <label class="mode-option">
+                            <input type="radio" name="play-mode" value="replace">
+                            <span>Zastąp</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <p id="mode-help">Uruchomi nowe okno MPV.</p>
+            </section>
+
+            <section id="progress-card" class="progress-card" data-tone="loading"
+                aria-live="polite" aria-atomic="true">
+                <div class="stage-row">
+                    <span id="stage-icon" class="stage-icon" aria-hidden="true">…</span>
+                    <div>
+                        <p class="section-kicker">Etap: <span id="stage-label">Uruchamianie</span></p>
+                        <h2 id="status-title">Sprawdzam bieżącą kartę</h2>
+                    </div>
+                </div>
+                <p id="status-message" class="status-message">Pobieram zapisany stan wykrywania.</p>
+                <p class="reason-line">
+                    <strong id="reason-label">Dlaczego nie otwarto:</strong>
+                    <span id="status-reason">Analiza jeszcze trwa.</span>
+                </p>
+            </section>
+
+            <section class="diagnostics-section" aria-labelledby="diagnostics-heading">
+                <details id="diagnostics-panel">
+                    <summary>
+                        <span id="diagnostics-heading">Diagnostyka</span>
+                        <span id="event-count" class="event-count">0 zdarzeń</span>
+                    </summary>
+                    <p class="diagnostics-note">Adresy i dane dostępowe są ukrywane. Widoczne są tylko etapy i przyczyny.</p>
+                    <ol id="event-list" class="event-list"></ol>
+                </details>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p id="global-feedback" class="global-feedback" role="status" aria-live="polite"></p>
+            <button id="clear-button" class="clear-button" type="button">Wyczyść sesję tej karty</button>
+        </footer>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>
